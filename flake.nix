@@ -136,9 +136,23 @@
     };
 
     rustPkgs = let
-      commonArgs = { src = craneLib.cleanCargoSource ./.; };
+      commonArgs = {
+        src = craneLib.cleanCargoSource ./.;
+        nativeBuildInputs = np.lib.optional (np.stdenv.isDarwin) np.libiconv;
+      };
       deps = craneLib.buildDepsOnly (commonArgs // {
         # Unfortunate...
+        #
+        # `buildDepsOnly` does a full build and leaves in the binary artifacts.
+        #
+        # Normally (when doing one hop from deps to the release drv) this is not
+        # an issue but in our case, because we have two hops (lib, then
+        # binaries), these binaries are symlinked into the binary drv's target
+        # folder and cannot be overwritten.
+        #
+        # What we really want is to be able to elide `--all-targets` or better
+        # yet to drop all artifacts from the top-level crate/workspace (or just
+        # not build them in the first place).
         postBuild = ''
           rm target/$CARGO_PROFILE/{split,view}*
         '';
@@ -187,7 +201,9 @@
       ) // { default = self.apps.${system}.split; };
 
     checks = {
-      inherit (rustPkgs) clippy fmt;
+      inherit (rustPkgs) clippy;
+    } // np.lib.optionalAttrs (system == "x86_64-linux") {
+      inherit (rustPkgs) fmt;
     };
 
     devShells = rec {
