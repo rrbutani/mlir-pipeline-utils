@@ -114,6 +114,33 @@
     in addChecks drv;
 
     delta = let
+      # We want to point `delta` at our bat cache dir.
+      # `bat` has an env var for this: https://github.com/sharkdp/bat/blob/7c847d84b0c3c97df6badfbb39d153ad93aec74e/src/bin/bat/directories.rs#L43-L60
+      #
+      # Unfortunately `delta` does not use it: https://github.com/dandavison/delta/blob/afa7a1a38dc13ea480653938e6c54c933396515c/src/utils/bat/dirs.rs#L19-L30
+      # (see: https://docs.rs/dirs-next/latest/dirs_next/fn.cache_dir.html)
+      #
+      # So we need this symlink tree which we have delta treat as
+      # `XDG_CACHE_HOME`:
+      batConfigForDelta = np.runCommandNoCC "bat-config-for-delta" { } ''
+        mkdir -p $out
+        ln -s ${batCacheDir} $out/bat
+      '';
+    in np.writeShellApplication {
+      name = "delta";
+      runtimeInputs = [ np.delta ];
+      text = ''
+        export XDG_CACHE_HOME="${batConfigForDelta}"
+        exec delta "''${@}"
+      '';
+    };
+
+    split = let
+
+    in null;
+
+    view = let
+
     in null;
   in rec {
     packages = { inherit bat delta; };
