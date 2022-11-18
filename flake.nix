@@ -20,8 +20,17 @@
   }: flake-utils.lib.eachDefaultSystem (system: let
     np = nixpkgs.legacyPackages.${system};
 
-    batConfigDir = null;
-    batCacheDir = null;
+    batConfigDir = np.runCommandNoCC "bat-config" {} ''
+      mkdir -p $out/syntaxes
+      cp ${mlir-syntax.lib.mlir-syntax} $out/syntaxes/mlir.sublime-syntax
+
+      touch $out/config # no custom configuration options for now..
+    '';
+    batCacheDir = np.runCommandNoCC "bat-cache" {
+      nativeBuildInputs = [ np.bat ];
+    } ''
+      bat cache --build --source ${batConfigDir} --target $out
+    '';
 
     # export BAT_CONFIG_PATH="/path/to/bat.conf"
     # export BAT_CACHE_PATH=""
@@ -31,7 +40,78 @@
     # check phase: check that MLIR is in the listed languages
     # test zstd handling
     bat = let
-    in null;
+      drv = np.writeShellApplication {
+        name = "mlir-bat";
+        runtimeInputs = with np; [ zstd coreutils np.bat ];
+        text = ''
+          export BAT_CONFIG_PATH="${batConfigDir}/config"
+          export BAT_CACHE_PATH="${batCacheDir}"
+
+          if [[ ''${NIX_DEBUG-0} -gt 5 ]]; then
+            echo "mlir-bat $*" >&2
+            set -x
+          fi
+
+          # If we have more than 1 file or other options, bail on trying to
+          # parse them.
+          declare -a args=("$@")
+          declare -a fileIdxs=()
+
+          for ((i = 1; i <= $#; ++i)); do
+            a=$i
+            if ! [[ "''${!a}" =~ ^\-.* ]]; then
+              fileIdxs+=("$i")
+            fi
+          done
+
+          if [[ "''${#fileIdxs[@]}" == 1 ]]; then
+            idx="''${fileIdxs[0]}"
+
+            # shellcheck disable=SC2184
+            unset args["$((idx - 1))"]
+
+            filePath="''${!idx}"
+
+            fileName="$(basename "$filePath")"
+            fileName="''${fileName,,}"
+            zstd=false
+            declare -a extraArgs=()
+
+            if [[ "''${fileName}" =~ .*\.zst$ ]]; then
+              zstd=true
+              fileName="$(basename "$fileName" .zst)"
+            fi
+
+            if [[ "''${fileName}" =~ .*\.mlir$ ]]; then
+              extraArgs+=(--wrap never)
+            fi
+
+            if [[ $zstd == true ]]; then
+              zstdcat "$filePath" | bat "''${extraArgs[@]}" "''${args[@]}" --file-name "$filePath" --ignored-suffix .zst
+            else
+              exec bat "''${extraArgs[@]}" "''${args[@]}" "$filePath"
+            fi
+          else
+            exec bat "''${@}"
+          fi
+        '';
+      };
+
+      addChecks = drv: drv.overrideAttrs (old: {
+        postCheck = old.postCheck or "" + ''
+          chmod +x $out/bin/mlir-bat # See: https://github.com/NixOS/nixpkgs/pull/201721
+
+          # test that MLIR is listed in the supported languages:
+          $out/bin/mlir-bat -L | grep "MLIR:mlir"
+
+          # test that zstd compressed files are automatically piped through
+          # `zstdcat`:
+          echo "test test test test " > test
+          ${np.zstd}/bin/zstd test
+          $out/bin/mlir-bat test.zst | grep "test test test test"
+        '';
+      });
+    in addChecks drv;
 
     delta = let
     in null;
