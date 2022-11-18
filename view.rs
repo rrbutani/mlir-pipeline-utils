@@ -94,7 +94,7 @@ impl Pipeline {
                             write!(f, "({:?}, {:?})", s.before, s.after)?;
                         }
 
-                        writeln!(f, "")?;
+                        writeln!(f)?;
                     }
                 }
 
@@ -121,7 +121,7 @@ fn infer_pass_pipeline(mut pass_files: Vec<PathBuf>) -> Res<Pipeline> {
         .map(|path| {
             let filename = path.file_name().unwrap().to_str().unwrap();
             let [_num, kind, pass_name]: [&str; 3] =
-                filename.split("-").collect::<Vec<_>>().try_into().unwrap();
+                filename.split('-').collect::<Vec<_>>().try_into().unwrap();
 
             let kind = LogKind::from_short(kind).unwrap();
             (
