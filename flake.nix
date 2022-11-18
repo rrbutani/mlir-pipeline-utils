@@ -156,11 +156,11 @@
         sources = builtins.path {
           path = ./.;
           name = "shell-sources";
-          filter = p: _: np.lib.hasSuffix (builtins.baseNameOf p) ".sh";
+          filter = p: _: np.lib.hasSuffix ".sh" (builtins.baseNameOf p);
         };
       in np.runCommand "lint" {
         nativeBuildInputs = [ np.shellcheck ];
-      } "shellcheck ${sources}/*.sh";
+      } "shellcheck ${sources}/*.sh && touch $out";
     };
 
     devShells.default = np.mkShell {
