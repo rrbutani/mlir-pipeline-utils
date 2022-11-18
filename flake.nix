@@ -12,13 +12,18 @@
   inputs = {
     flake-utils.url = github:numtide/flake-utils;
     nixpkgs.url = github:NixOS/nixpkgs/nixos-unstable;
+    crane = {
+      url = "github:ipetkov/crane";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     mlir-syntax.url = github:rrbutani/sublime-mlir-syntax;
   };
 
   outputs = {
-    self, flake-utils, nixpkgs, mlir-syntax
+    self, flake-utils, nixpkgs, crane, mlir-syntax
   }: flake-utils.lib.eachDefaultSystem (system: let
     np = nixpkgs.legacyPackages.${system};
+    craneLib = crane.lib.${system};
 
     batConfigDir = np.runCommandNoCC "bat-config" {} ''
       mkdir -p $out/syntaxes
@@ -31,11 +36,6 @@
     } ''
       bat cache --build --source ${batConfigDir} --target $out
     '';
-
-    # export BAT_CONFIG_PATH="/path/to/bat.conf"
-    # export BAT_CACHE_PATH=""
-    # --wrap=never
-    # zstd stuff
 
     # check phase: check that MLIR is in the listed languages
     # test zstd handling
@@ -135,37 +135,73 @@
       '';
     };
 
-    split = let
+    rustPkgs = let
+      commonArgs = { src = craneLib.cleanCargoSource ./.; };
+      deps = craneLib.buildDepsOnly (commonArgs // {
+        # Unfortunate...
+        postBuild = ''
+          rm target/$CARGO_PROFILE/{split,view}*
+        '';
+      });
+      lib = craneLib.cargoBuild (commonArgs // {
+        src = np.lib.cleanSourceWith {
+          src = ./.;
+          filter = path: _: let
+            n = builtins.baseNameOf path;
+          in n == "common.rs" || np.lib.hasPrefix "Cargo" n;
+        };
+        cargoArtifacts = deps;
+        cargoExtraArgs = "--lib ";
+        doInstallCargoArtifacts = true;
+      });
+      bin = name: craneLib.buildPackage (commonArgs // {
+        cargoArtifacts = lib;
+        pnameSuffix = "-" + name;
+        cargoExtraArgs = "--bin=${name}";
+      });
 
-    in null;
+    in {
+      split = bin "split";
+      view = bin "view";
 
-    view = let
+      clippy = craneLib.cargoClippy (commonArgs // {
+        cargoArtifacts = lib;
+        cargoClippyExtraArts = "--all-targets -- --deny warnings";
+      });
+      fmt = craneLib.cargoFmt commonArgs;
+    };
 
-    in null;
+    # TODO: wrappers with env-vars + rename to `mlir-`
+    split = rustPkgs.split;
+    view = rustPkgs.view;
+
   in rec {
-    packages = { inherit bat delta; };
+    packages = {
+      inherit bat delta split view;
+    };
 
     apps =
       (builtins.mapAttrs
         (_: pkg: { type = "app"; program = np.lib.getExe pkg; })
         packages
-      );
+      ) // { default = self.apps.${system}.split; };
 
     checks = {
-      lint = let
-        sources = builtins.path {
-          path = ./.;
-          name = "shell-sources";
-          filter = p: _: np.lib.hasSuffix ".sh" (builtins.baseNameOf p);
-        };
-      in np.runCommand "lint" {
-        nativeBuildInputs = [ np.shellcheck ];
-      } "shellcheck ${sources}/*.sh && touch $out";
+      inherit (rustPkgs) clippy fmt;
     };
 
-    devShells.default = np.mkShell {
-      inputsFrom = [ checks.lint ];
-      packages = builtins.attrValues packages;
+    devShells = rec {
+      default = playground;
+
+      # All the binaries from this flake in a shell for you to play around with.
+      playground = np.mkShell {
+        packages = builtins.attrValues packages;
+      };
+
+      dev = np.mkShell {
+        inputsFrom = (builtins.attrValues packages) ++ (builtins.attrValues checks);
+        packages = (with packages; [ bat delta ]) ++ [ np.rust-analyzer np.rustc ];
+      };
     };
   });
 }

@@ -1,0 +1,30 @@
+[package]
+edition = "2021"
+name = "mlir-pipeline-utils"
+version = "0.0.1"
+description = "Utilities for viewing MLIR pass pipeline logs"
+readme = "README.md"
+repository = "github.com/rrbutani/mlir-pipeline-utils"
+
+# keywords = []
+# categories = []
+
+exclude = ["flake*"]
+default-run = "view"
+
+[lib]
+path = "common.rs"
+
+[[bin]]
+name = "split"
+path = "split.rs"
+
+[[bin]]
+name = "view"
+path = "view.rs"
+
+[dependencies]
+zstd = "0.11"
+
+[profile.release]
+lto = "thin"
