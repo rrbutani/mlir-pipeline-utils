@@ -57,20 +57,20 @@ impl Pipeline {
                     write!(fmt, "┃  ")?;
                 }
                 write!(fmt, "{suffix}")
-
-                // match self.depth {
-                //     n => {
-                //         let repeat = n; // TODO: clean up
-                //     }
-                // }
             }
 
             fn within<'t, T>(&self, inner: &'t T) -> PipelineDisplayHelper<'t, T> {
-                PipelineDisplayHelper { inner, depth: self.depth }
+                PipelineDisplayHelper {
+                    inner,
+                    depth: self.depth,
+                }
             }
 
             fn nested<'t, T>(&self, inner: &'t T) -> PipelineDisplayHelper<'t, T> {
-                PipelineDisplayHelper { inner, depth: self.depth + 1 }
+                PipelineDisplayHelper {
+                    inner,
+                    depth: self.depth + 1,
+                }
             }
         }
 
@@ -106,12 +106,14 @@ impl Pipeline {
             }
         }
 
-        PipelineDisplayHelper { depth: 0, inner: self }
+        PipelineDisplayHelper {
+            depth: 0,
+            inner: self,
+        }
     }
 }
 
 fn infer_pass_pipeline(mut pass_files: Vec<PathBuf>) -> Res<Pipeline> {
-    // pass_files.sort_by(compare)
     pass_files.sort();
 
     let mut iter = pass_files
@@ -122,54 +124,13 @@ fn infer_pass_pipeline(mut pass_files: Vec<PathBuf>) -> Res<Pipeline> {
                 filename.split("-").collect::<Vec<_>>().try_into().unwrap();
 
             let kind = LogKind::from_short(kind).unwrap();
-            (kind, pass_name.split_once('.').unwrap().0.to_string(), path.clone())
+            (
+                kind,
+                pass_name.split_once('.').unwrap().0.to_string(),
+                path.clone(),
+            )
         })
         .peekable();
-
-    // fn read_pass(
-    //     looking_for: &str,
-    //     before: PathBuf,
-    //     mut iterator: &mut Peekable<impl Iterator<Item = (LogKind, String, PathBuf)>>,
-    // ) -> Pass {
-    //     if let Some((kind, pass_name, path)) = iterator.peek() {
-    //         use LogKind::*;
-    //         match kind {
-    //             After => {
-    //                 if pass_name == looking_for {
-    //                     iterator.next().unwrap();
-    //                     return Pass::Single(SinglePass {
-    //                         pass_name: pass_name.clone(),
-    //                         before: File::open(before).unwrap(),
-    //                         after: File::open(path).unwrap(),
-    //                     });
-    //                 } else {
-    //                     panic!("got logs after pass `{pass_name}`, expecting logs after pass `{looking_for}`");
-    //                 }
-    //             }
-
-    //             Before => {
-    //                 let pipeline = read_pipeline(iterator);
-    //                 let (kind, pass_name, path) = iterator.next().unwrap_or_else(|| {
-    //                     panic!("expected an after log for pass `{looking_for}`")
-    //                 });
-    //                 assert_eq!(kind, LogKind::After);
-    //                 assert_eq!(pass_name, looking_for);
-
-    //                 return Pass::Nested {
-    //                     parent: SinglePass {
-    //                         pass_name,
-    //                         before: File::open(before).unwrap(),
-    //                         after: File::open(path).unwrap(),
-    //                     },
-    //                     pipeline,
-    //                 };
-    //             }
-    //             Unknown => panic!("got a log we don't know how to handle for pass `{pass_name}`"),
-    //         }
-    //     } else {
-    //         panic!("ran out of pass logs without getting the log after `{looking_for}");
-    //     }
-    // }
 
     fn read_pass(
         looking_for: &str,
@@ -253,9 +214,6 @@ fn main() -> Res<()> {
         .collect();
 
     let pipeline = infer_pass_pipeline(files)?;
-
-    // dbg!(&pipeline);
-
     println!("Pipeline:\n{}", pipeline.display());
 
     Ok(())
