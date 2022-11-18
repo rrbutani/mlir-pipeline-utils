@@ -39,7 +39,7 @@ struct Args {
 
 fn progress_style() -> ProgressStyle {
     let template = format!(
-        "{} {{msg}} {{pos}} {{bytes}} {{elapsed}}",
+        "{} Pass #{{pos}}: {{msg}} ({{elapsed}} elapsed)",
         "{spinner}".cyan()
     );
     ProgressStyle::with_template(&*template).unwrap()
@@ -204,7 +204,8 @@ fn main() -> Res<()> {
         move |pass_info: LogInfo| {
             let skip_increment = if let Some(ref last_pass) = last_pass_info {
                 let same_pass_name = last_pass.pass_name == pass_info.pass_name
-                    && last_pass.pass_cmdline_opt_and_extras == pass_info.pass_cmdline_opt_and_extras;
+                    && last_pass.pass_cmdline_opt_and_extras
+                        == pass_info.pass_cmdline_opt_and_extras;
                 same_pass_name
                     && last_pass.kind == LogKind::Before
                     && pass_info.kind == LogKind::After
@@ -251,25 +252,4 @@ fn main() -> Res<()> {
     ));
 
     Ok(())
-
-    // p.inc(1);
-    // p.inc(10000);
-    // p.inc(1);
-    // p.inc(1);
-
-    // thread::sleep(Duration::from_millis(2000));
-    // p.set_length(20000);
-    // p.set_prefix("df");
-    // thread::sleep(Duration::from_millis(2000));
-    // drop(p);
-    // let p = ProgressBar::new(34);
-    // p.enable_steady_tick(Duration::from_millis(100));
-    // thread::sleep(Duration::from_millis(200));
-    // p.inc(20);
-    // p.set_prefix("df");
-    // p.set_message("Waiting for input on stdin...");
-
-    // thread::sleep(Duration::from_millis(20000));
-
-    // Ok(())
 }

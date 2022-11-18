@@ -231,3 +231,4 @@
 #   - use our bat
 
 # TODO: use zstd adaptive compression in split
+#  - unfortunately zstd-rs doesn't support this...
