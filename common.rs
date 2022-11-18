@@ -19,6 +19,16 @@ impl LogKind {
             Unknown => "2u",
         }
     }
+
+    pub fn from_short(s: &str) -> Option<Self> {
+        use LogKind::*;
+        Some(match s {
+            "0b" => Before,
+            "1a" => After,
+            "2u" => Unknown,
+            _ => return None,
+        })
+    }
 }
 
 impl<'s> From<&'s str> for LogKind {
