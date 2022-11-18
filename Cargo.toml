@@ -24,7 +24,11 @@ name = "view"
 path = "view.rs"
 
 [dependencies]
-zstd = "0.11"
+color-eyre = "0.6"
+clap = { version = "4", features = ["color", "derive"] }
+indicatif = "0.17"
+zstd = { version = "0.11", features = [ "zstdmt" ] }
+
 
 [profile.release]
 lto = "thin"
