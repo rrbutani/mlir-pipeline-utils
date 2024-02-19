@@ -28,7 +28,9 @@ color-eyre = "0.6"
 clap = { version = "4", features = ["color", "derive"] }
 indicatif = "0.17"
 zstd = { version = "0.11", features = [ "zstdmt" ] }
-
+# ipc-channel
+# tui  - quit button bottom right; on hover, highlight/change color; other passes with same name as current pass are also highlighted; for a nested pass, the whole pass pipeline is highlighted when slecting the parent, page up/down home/end support on the list; ctrl c/q/w or just q to quit as well; dump name in the bottom bar with the exit button
+# crossterm
 
 [profile.release]
 lto = "thin"
